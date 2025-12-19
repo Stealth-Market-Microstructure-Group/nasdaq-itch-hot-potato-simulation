@@ -167,49 +167,7 @@ try:
 
             if market_trades:  # // AGENT INVENTORY UPDATION
                 agent_b.update_inventory(market_trades)   
-                """you know what , this all ABM was scam ,. becoz your agent can't really get hit by any market order ,
-                unitl and unless , you make a agent that is going to trade agaisnt this one agent ,  and there even if you think ,
-                becoz in itch data , all the thing we get is orderexecuted messages and there you just do the shit thing of removing that order and 
-                showing that a market order hitted him so that's why . now and also what i thought in when back then i was not knowing this , is that 
-                you get market orders in the itch messages ittself , and there , what you do is , you can take them and execute with any of the best 
-                price that is avaiable at that moment , and there you are having the chance , your agent is having the chance that if he is able to be fast 
-                and place a order before the other peopple from data , then he would in front of queue and there he would be then be possible to execute the 
-                order of himself and there he is playing like any other market participant , like no speicaility and there you dont need to make another agent 
-                just so whenever my agent places a limit order , he dont have to wait for endless period of time , as there is no one coming from data
-                that would hit his order , why , becozing this fucking thing is just doing the wrost of i can think , . you know that , it just do process
-                the things where orderexecuted messages are just used in a way , you know the logic . this is shit. it doesnot use much of of structure of 
-                market order matching fucntions i made putting fucking more effort then anything and mostly it also dont care about queue position anymore , why , 
-                let me make you understand , as lets see a liimit order , addorder message comes,  what happens , the thing is going to process order and there
-                this process order directs the message accordingly to add_place_limit_order or add_match_market_order , and you know what , the fucking thing is never
-                going to use add_match_market_order , as this messages are jusr fucking limit orders , you dont get any market order from this , the fuck history of itch
-                , so then what , then just fuck off , becoz then if you get order executed messages , you porces them using the fucking logic of just handling how to 
-                print the logs then really manipulating the book like how really a mathing engine works , you just update by removing the order or updating quantity
-                but you dont really do the use of match market order fucniton anytime in this fucking thing ,add_match_market_order,.
-                so  , so the thing is you just use this fucking add_match_market_order when there is you process the orders of agents only and you know what 
-                there also you made this big fucking fucntion add_match_market_order , just for when for a agent only , and when no one from data even need this fucntion 
-                and this is shit , really ,. and now what , now you do is just make another fucking agent , which is so good at scripting the whole game before the thing , that he 
-                help facilitate the hot potato effect agent b is trying to show , and there , you need to be this agent , new agent which when agent b places a limit sell , he should 
-                be also placing the market order in such a way that he hit s ageent b , as otherwise agent b can't get fucking filledd , and then when agent b is short 
-                 he decides and places another order in next iteration and which is to buy back , and that would be a market order , and but before that agent A should be placing a 
-                 limit sell to make sure he is there to be the person to which agent B hits and , there you know what the order of placing the ORDERS is like this:
-                 agent b places a limit sell , agent A places a market buy (and in such way , it consumes the person in front of queue and reaches b also to consume it ) and the 
-                 agent A places another order , a limit sell to hedge agianst the order of market buy he did and then finally agent b places a order a market buy and hits to show 
-                  hot potato and to get flat and this is clear order : agent b limit sell -> agent A market buy -> agent A limit sell -> agent b market buy .
-                  and this is one thing . 
-                  after this fucking thing. this task , and the hot potato thing get done . i would make so many massive changes in this whole project this probelm of no market order 
-                  from itch data for my agents and i need precise agent who places market orders to get against the first agent to make sure the first agent is able to get his thing get done when he places a limit order 
-                  this things needs a permanent solution , so what i am going to do . i woul try to convert the orderexecuted messages into market order , and yes you heared it right , i would take its qty and its side , if it is buy 
-                  sell and then make a order object of this type and a random order id and then a everything it needed was just qty and side , if it is nuy or sell and then i will make the use of 
-                  my add_match_market_order and make the game fair , and then the porblem will be solved,  i would never need to make another agent to help faciliate that my limit orders
-                  of agents get filled . and there everything will just be on logic based and pure orderbook dynamics and no shity things likee the if orderexecuted messaages currelty does .
-                  so this is the plan. 
-                  
-
-                this fucking logic of if messagetype == orderexecuted or .... that is used , but the fucking fucntions of add_place_limit_order and add_match_market_order
-                this both are just so limited . as now when that o
-                    """ 
-
-
+                
 
             # --- 4. AGENT LOGIC ---
             agent_orders_to_submit = agent_b.decide_action(
