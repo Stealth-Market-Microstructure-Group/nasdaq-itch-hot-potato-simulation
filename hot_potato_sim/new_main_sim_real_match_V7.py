@@ -4,15 +4,9 @@ import sys
 import os
 
 
-# Get the path to the current file's directory (e.g., .../hot_potato_sim)
 current_dir = os.path.dirname(os.path.abspath(__file__))
-# Get the path to the parent directory (e.g., .../Research hot potato test sim)
 parent_dir = os.path.dirname(current_dir)
-
-# Add the parent directory to Python's list of places to look for modules
 sys.path.append(parent_dir)
-
-
 
 import json
 import logging
@@ -23,29 +17,12 @@ from v2_orderbook.Trade_Class import Trade
 
 
 
-
-# --- 1. SETUP LOGGING TO STDERR (Your setup is PERFECT) ---
+# /// Setup Logging to STDERR
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stderr)
-# -----------------------------------------------------------
+# ______________________________________________
 
-# ///////////////////////////////////////
 
-# # Separate logger for best bid/ask snapshots
-# best_logger = logging.getLogger("best_bid_ask_logger")
-# best_logger.setLevel(logging.INFO)
 
-# # 'a' = append mode (keeps all history)
-# # 'w' = overwrite each run (starts clean each time)
-# file_handler = logging.FileHandler("best_bid_ask_snapshots.log", mode='w')
-
-# file_formatter = logging.Formatter('%(asctime)s | BEST_BID=%(message)s')
-# file_handler.setFormatter(file_formatter)
-
-# best_logger.addHandler(file_handler)
-
-# best_logger.propagate = False  # ← prevents file logs from showing up in terminal
-
-# ////////////////////////////////////////
 best_logger = logging.getLogger("best_bid_ask_logger")
 best_logger.setLevel(logging.INFO)
 file_handler = logging.FileHandler("best_bid_ask_history.log", mode='a')
@@ -66,7 +43,7 @@ MAX_LINES_TO_PROCESS = 50000  # Stop after 50,000 lines (adjust as needed)
 VISUAL_DELAY_SECONDS = 0.2   # Pause for 0.1 seconds after each event
 
 
-logging.info("Simulator alive, reading from 'spy_data.jsonl'...")
+logging.info("Simulator alive, reading from 'spy_data_ph.jsonl'...")
 
 #______________________________________________________________________________________________________________________________________________________
 
@@ -93,23 +70,6 @@ def log_best_bid_ask_to_file():
 
 
 
-# def log_best_bid_ask_to_file():
-#     data = order_book.get_best_price_and_qtys()
-#     with open(live_log_path, "w", buffering=1) as f:  # overwrite + line-buffered
-#         if data:
-#             best_bid, bid_qty, best_ask, ask_qty = data
-#             f.write(
-#                 f"BEST ASK: {best_ask:>8}  --  {ask_qty} shares\n"
-#                 f"{'-'*35}\n"
-#                 f"BEST BID: {best_bid:>8}  --  {bid_qty} shares\n"
-#             )
-#         else:
-#             f.write("BOOK EMPTY\n")
-
-#         #  ensure immediate update on disk
-#         f.flush()
-#         os.fsync(f.fileno())
-
 # """
 # write :
 # cd "C:/Users/p7379/OneDrive/Documents/SMMG/NOV 2025  .  HOT POTATO IN ITCH/HOT POTATO ITCH . AGENT TEST/Research hot potato sim ITCH/hot_potato_sim"
@@ -122,65 +82,50 @@ def log_best_bid_ask_to_file():
 
 
 
-    # container = order_book.get_best_price_and_qtys()
-    # if container:
-    #     best_bid , bid_qty , best_ask , ask_qty = container
-    #     best_logger.info(f"BEST_BID: {best_bid} QTY: ({bid_qty})  |  BEST_ASK: {best_ask} QTY: ({ask_qty})")
-    # else:
-    #     best_logger.info("BOOK EMPTY (no bid/ask)")
-
-    # # --- Force immediate disk write ---
-    # for handler in best_logger.handlers:
-    #     handler.flush()
-
-# //////////////////////////////////
 
 
+script_dir = os.path.dirname(os.path.abspath(__file__)) #  absolute path to the directory this script is in 
 
-
-# --- Get the absolute path to the directory this script is in ---
-script_dir = os.path.dirname(os.path.abspath(__file__))
-# --- Define the file path *relative* to this script ---
-data_file_path = os.path.join(script_dir, 'spy_data.jsonl') # this is whre to put name of file. jsonl///
+data_file_path = os.path.join(script_dir, 'spy_data_ph.jsonl') # this is whre to put name of file. jsonl///
+#  file path relative to this script 
 
 try:
     logging.info(f"Attempting to open file at: {data_file_path}")
     with open(data_file_path, 'r', encoding='utf-16-le') as f:
-    # -------------------------------------------
+    # _____________________________________________
+
         for line_number, line in enumerate(f):  
 
-            # --- 3. NEW: STOP SIGN ---
+            # /// when to brak the sim  ///
             
             if line_number > MAX_LINES_TO_PROCESS:
                 logging.info(f"Reached max lines ({MAX_LINES_TO_PROCESS}). Stopping simulation.")
                 break # <-- This is your clean exit
             
-            # ---------------------------
+            # __________________________________
              
           
             clean_line = line.strip()
             
             if not clean_line:
-                continue # Skip empty or whitespace-only lines
+                continue # Skiping empty or whitespace-only lines
 
             try:
                 market_event = json.loads(clean_line)
             except json.JSONDecodeError as json_err:
-                # This log will now be accurate
                 logging.warning(f"L#{line_number}: Skipping malformed JSON. Error: {json_err}. Line: '{clean_line}'")
                 continue
             
-            # /// From here, your simulation logic is good ///
+            # ///
 
-
-            # symbol = market_event.get("Symbol")
+            # symbol = market_event.get("Symbol") # not required rn.
             timestamp = market_event.get('TimestampUTC')
             event_type = market_event.get('EventType')
             payload = market_event.get('Payload')
 
 
-            # if symbol != "SPY": # // if not same as fixed , ignore the message !
-            #     continue
+            # if symbol != "SPY": # // if not same as fixed , ignore those messages !  # currently file is spy based only , so no problm .
+            #     continue  
 
 
             if not timestamp:
@@ -190,7 +135,7 @@ try:
 
 
 
-            # --- 3. MARKET DATA LOGIC ---
+            # /// Market Data Logic ///
 
             trades = []
 
@@ -240,7 +185,7 @@ try:
 # (a desgin comment was there previously , check design doc there to see the idea .......)
 
 
-            # /// 4. AGENT LOGIC ///
+            # ///  Agent Logic ///
             agent_orders_to_submit_or_remove = agent_b.decide_action(
                 current_sim_time_ns, 
                 order_book.get_best_bid(), 
@@ -248,7 +193,7 @@ try:
             )
 
 
-            # /// 5. AGENT PROCESSING (Handles list OR single order) ///
+            # ///  Agent Processing (Handles list OR single order) ///
 
             orders_to_process = []
 
