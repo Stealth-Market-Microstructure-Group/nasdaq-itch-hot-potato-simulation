@@ -124,11 +124,11 @@ It is not intended for:
   Key guidance and advice; expertise from 20+ years in proprietary trading firms
 
 - **Pankaj J.**  
-  Tech Lead & Research Architect
+  Tech Lead & Research Architect  
   System design, simulator code & architecture, and agent interaction logic
 
 - **Bhavik P.**  
-  Data Engineering Contributor 
+  Data Engineering Contributor  
   ITCH parsing, data pipelines, and streaming code & infrastructure
 
 ---
