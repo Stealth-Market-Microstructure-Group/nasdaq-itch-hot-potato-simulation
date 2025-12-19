@@ -119,7 +119,7 @@ It is not intended for:
 
 ## Contributors
 
-- **David M.**
+- **David M.**  
   Strategic Advisor  
   Key guidance and advice; expertise from 20+ years in proprietary trading firms
 
