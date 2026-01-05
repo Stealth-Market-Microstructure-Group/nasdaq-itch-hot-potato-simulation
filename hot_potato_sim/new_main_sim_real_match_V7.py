@@ -174,6 +174,13 @@ try:
                             log_best_bid_ask_to_file()  # .......................................................................................................................// 1:37am 9 NOV 25
 
 
+            elif event_type == "OrderCancel":
+                oid = payload["OrderReferenceNumber"]
+                canceled = payload["CanceledShares"]
+
+                if oid in order_book.orders_by_id:
+                    order_book.reduce_order_qty(oid, canceled, timestamp=current_sim_time_ns)
+    
 
             elif event_type == "OrderDelete":
 

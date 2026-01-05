@@ -46,7 +46,6 @@ class OrderBook:
 
 #  ///// oid is shorthand for order_ird ///////////////
 
-
     def remove_order(self,order_id,timestamp):
         # now use this for orderexecuted message ,okay, boy ;)   
         # look this function return a trade 
@@ -70,6 +69,21 @@ class OrderBook:
             logging.info(f"FAILED: [{timestamp}] ORDER REMOVAL ({order_id})")   # if order not in book . means our agent took it off , so.../
         # /... nothing needs to be done . so no print , no log . that trade already may have done the logging , when agent interacted with that order ! 
         # IMP CONCEPT discussed just above ... look sometimes , when docmentation is done # __________________________________________________________________________________ good point , understand
+
+    def reduce_order_qty(self,cancel_qty , order_id,timestamp):
+        if order_id not in self.orders_by_id:
+            return
+        
+        order = self.orders_by_id[order_id]
+        old_qty = order.qty
+
+        if cancel_qty < old_qty:
+            self.orders_by_id[order_id].qty = old_qty - cancel_qty
+
+        elif cancel_qty == order.qty:
+            self.remove_order(order_id,timestamp)
+        else: # a weired case
+            return
 
     def replace_order(self ,old_oid ,new_oid ,new_price ,new_qty,timestamp):
         # first we know keep queue postion when only the same price and if size is decremented !

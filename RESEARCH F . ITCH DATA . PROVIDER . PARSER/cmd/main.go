@@ -12,9 +12,25 @@ import (
 	"github.com/Bhavik2205/Research_Factory.git/internal/parser"
 )
 
+// ================= SYMBOL FILTER LAYER =================
 
+// OrderID -> Symbol
+var orderSymbolMap = make(map[uint64]string)
 
-// MarketEvent struct (unchanged)
+// OrderID -> Remaining shares
+var orderRemaining = make(map[uint64]uint32)
+
+// Only process orders of this symbol
+const targetSymbol = "SPY"
+
+// Check if an order belongs to our target symbol
+func isTargetOrder(orderID uint64) bool {
+	sym, ok := orderSymbolMap[orderID]
+	return ok && sym == targetSymbol
+}
+
+// ================= OUTPUT STRUCT =================
+
 type MarketEvent struct {
 	Source       string `json:"Source"`
 	EventType    string `json:"EventType"`
@@ -24,123 +40,212 @@ type MarketEvent struct {
 	Payload      any    `json:"Payload"`
 }
 
-// --- NEW: DEFINE YOUR TARGET SYMBOL HERE ---
-const targetSymbol = "SPY" // Change this to "HSBC" or whatever stock you want
-
 func main() {
 	log.SetOutput(os.Stderr)
-	log.Println("[Go] Parser starting...")
-    log.Printf("[Go] Filtering for SINGLE SYMBOL: %s", targetSymbol)
+	log.Printf("[Go] Filtering ONLY symbol: %s", targetSymbol)
 
-	stdoutWriter := bufio.NewWriter(os.Stdout)
-	defer stdoutWriter.Flush()
+	// Output JSON filename
+	outFile := "market_events.json"
+	outF, err := os.Create(outFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer outF.Close()
+	out := bufio.NewWriter(outF)
+	defer out.Flush()
 
-	f, err := os.Open(`data\01302020.NASDAQ_ITCH50`)
+	// Input ITCH file
+	inFile := `data\01302020.NASDAQ_ITCH50`
+	f, err := os.Open(inFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
-	log.Println("[Go] ITCH file opened successfully.")
 
 	sbr := parser.NewSoupBinReader(f)
-	packetCount := 0
-    messageCount := 0
 
-	for { // Outer packet loop
+	for {
 		payload, err := sbr.NextPayload()
-		packetCount++
 		if err == io.EOF {
 			break
 		}
-		if err != nil {
-			log.Fatalf("[Go] Framing error: %v", err)
-		}
-		if payload == nil {
+		if err != nil || payload == nil {
 			continue
-		}
-		if packetCount%100000 == 0 { // Changed to 100k
-			log.Printf("[Go] Processing packet %d... (Found %d %s messages so far)", packetCount, messageCount, targetSymbol)
 		}
 
 		dec := parser.NewDecoder(bytes.NewReader(payload))
 
-		for { // Inner message loop
+		for {
 			env, err := dec.Next()
 			if err == io.EOF {
 				break
 			}
 			if err != nil {
-				log.Fatalf("[Go] Decode error: %v", err)
+				log.Fatal(err)
 			}
 
-			var eventType string
-			var symbol string
-			var timestamp uint64
-			var msgPayload any
+			var (
+				eventType string
+				symbol    string
+				ts        uint64
+				msg       any
+			)
 
 			switch m := env.Msg.(type) {
-			
-			case *parser.AddOrderNoMPIDAttribution:
-                // --- NEW FILTER ---
-                if m.Stock != targetSymbol { continue }
-				eventType = "AddOrder"
-				symbol = m.Stock
-				timestamp = m.Header.Timestamp
-				msgPayload = m
 
-			case *parser.AddOrderWithMPIDAttribution:
-                // --- NEW FILTER ---
-                if m.Stock != targetSymbol { continue }
-				eventType = "AddOrder"
-				symbol = m.Stock
-				timestamp = m.Header.Timestamp
-				msgPayload = m
+			// ---------------- ADD ----------------
 
-			case *parser.OrderExecuted:
+			case *parser.AddOrderNoMPIDAttribution, *parser.AddOrderWithMPIDAttribution:
+				var orderID uint64
+				var stock string
+				var shares uint32
+				var header parser.MessageHeader
+
+				switch o := m.(type) {
+				case *parser.AddOrderNoMPIDAttribution:
+					orderID = o.OrderReferenceNumber
+					stock = o.Stock
+					shares = o.Shares
+					header = o.Header
+				case *parser.AddOrderWithMPIDAttribution:
+					orderID = o.OrderReferenceNumber
+					stock = o.Stock
+					shares = o.Shares
+					header = o.Header
+				}
+
+				orderSymbolMap[orderID] = stock
+				orderRemaining[orderID] = shares
+
+				if stock != targetSymbol {
+					continue
+				}
+
+				eventType = "AddOrder"
+				symbol = stock
+				ts = header.Timestamp
+				msg = m
+
+			// ---------------- EXECUTE ----------------
+
+			case *parser.OrderExecuted, *parser.OrderExecutedWithPrice:
+				var orderID uint64
+				var executed uint32
+				var header parser.MessageHeader
+
+				switch o := m.(type) {
+				case *parser.OrderExecuted:
+					orderID = o.OrderReferenceNumber
+					executed = o.ExecutedShares
+					header = o.Header
+				case *parser.OrderExecutedWithPrice:
+					orderID = o.OrderReferenceNumber
+					executed = o.ExecutedShares
+					header = o.Header
+				}
+
+				if !isTargetOrder(orderID) {
+					continue
+				}
+
+				// safe reduce qty logic
+				if remaining, ok := orderRemaining[orderID]; ok {
+					if executed >= remaining {
+						delete(orderRemaining, orderID)
+						delete(orderSymbolMap, orderID)
+					} else {
+						orderRemaining[orderID] = remaining - executed
+					}
+				}
+
 				eventType = "OrderExecuted"
-				symbol = "" // No symbol in this message
-				timestamp = m.Header.Timestamp
-				msgPayload = m
+				symbol = targetSymbol
+				ts = header.Timestamp
+				msg = m
 
-			case *parser.OrderExecutedWithPrice:
-				eventType = "OrderExecutedWithPrice"
-				symbol = "" // No symbol in this message
-				timestamp = m.Header.Timestamp
-				msgPayload = m
+			// ---------------- CANCEL ----------------
+
+			case *parser.OrderCancel:
+				orderID := m.OrderReferenceNumber
+				canceled := m.CanceledShares
+
+				if !isTargetOrder(orderID) {
+					continue
+				}
+
+				// reduce order qty safely
+				if remaining, ok := orderRemaining[orderID]; ok {
+					if canceled >= remaining {
+						delete(orderRemaining, orderID)
+						delete(orderSymbolMap, orderID)
+					} else {
+						orderRemaining[orderID] = remaining - canceled
+					}
+				}
+
+				eventType = "OrderCancel"
+				symbol = targetSymbol
+				ts = m.Header.Timestamp
+				msg = m
+
+			// ---------------- DELETE ----------------
+
+			case *parser.OrderDelete:
+				orderID := m.OrderReferenceNumber
+
+				if !isTargetOrder(orderID) {
+					continue
+				}
+
+				delete(orderRemaining, orderID)
+				delete(orderSymbolMap, orderID)
+
+				eventType = "OrderDelete"
+				symbol = targetSymbol
+				ts = m.Header.Timestamp
+				msg = m
+
+			// ---------------- REPLACE ----------------
+
+			case *parser.OrderReplace:
+				oldID := m.OriginalOrderRefNumber
+				newID := m.NewOrderRefNumber
+
+				if !isTargetOrder(oldID) {
+					continue
+				}
+
+				// move state to new order
+				orderSymbolMap[newID] = targetSymbol
+				orderRemaining[newID] = m.Shares
+
+				delete(orderSymbolMap, oldID)
+				delete(orderRemaining, oldID)
+
+				eventType = "OrderReplace"
+				symbol = targetSymbol
+				ts = m.Header.Timestamp
+				msg = m
 
 			default:
 				continue
 			}
 
-			// Marshal and print
-			marketEventJSON, err := json.Marshal(MarketEvent{
+			// Marshal JSON and write to output
+			ev, _ := json.Marshal(MarketEvent{
 				Source:       "ITCH",
 				EventType:    eventType,
 				Symbol:       symbol,
 				Exchange:     "NASDAQ",
-				TimestampUTC: timestamp,
-				Payload:      msgPayload,
+				TimestampUTC: ts,
+				Payload:      msg,
 			})
-			if err != nil {
-				log.Printf("[Go] JSON marshaling error: %v", err)
-				continue
-			}
-
-            // We found a message we want!
-            messageCount++
-			fmt.Fprintln(stdoutWriter, string(marketEventJSON))
-			err = stdoutWriter.Flush()
-			if err != nil {
-				log.Fatalf("[Go] Error flushing stdout: %v", err)
-			}
+			fmt.Fprintln(out, string(ev))
 		}
 	}
-	log.Printf("[Go] Parser finished file. Found a total of %d messages for %s.", messageCount, targetSymbol)
+
+	log.Printf("[Go] Finished writing events to %s", outFile)
 }
-
-
-
-
 
 
 
