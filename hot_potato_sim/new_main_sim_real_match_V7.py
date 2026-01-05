@@ -174,6 +174,28 @@ try:
                             log_best_bid_ask_to_file()  # .......................................................................................................................// 1:37am 9 NOV 25
 
 
+
+            elif event_type == "OrderDelete":
+
+                oid = payload["OrderReferenceNumber"]
+                
+                if oid in order_book.orders_by_id: # this check already is in remove_order function also
+                    order_book.remove_order(order_id=oid,timestamp=current_sim_time_ns)
+
+
+            elif event_type == "OrderReplace": 
+                old_oid = payload["OriginalOrderReferenceNumber"]
+                new_oid = payload["NewOrderReferenceNumber"]
+                
+                # if old_oid not in order_book.orders_by_id: // this thing is already in replace 
+
+                # payload["price"] is new price and payload["shares"] is new qty .
+                order_book.replace_order(old_oid, new_oid, payload["Price"], payload["Shares"], current_sim_time_ns)
+
+
+
+
+
 #                   /////////////////////            
 
 

@@ -44,6 +44,8 @@ class OrderBook:
         self.trades = []                  # will store the Trade Objects , after each executed trade !
         self.orders_by_id = {}          # use for cancel order / or to remove orders , becoz market hits from itch      
 
+#  ///// oid is shorthand for order_ird ///////////////
+
 
     def remove_order(self,order_id,timestamp):
         # now use this for orderexecuted message ,okay, boy ;)   
@@ -68,6 +70,23 @@ class OrderBook:
             logging.info(f"FAILED: [{timestamp}] ORDER REMOVAL ({order_id})")   # if order not in book . means our agent took it off , so.../
         # /... nothing needs to be done . so no print , no log . that trade already may have done the logging , when agent interacted with that order ! 
         # IMP CONCEPT discussed just above ... look sometimes , when docmentation is done # __________________________________________________________________________________ good point , understand
+
+    def replace_order(self ,old_oid ,new_oid ,new_price ,new_qty,timestamp):
+        # first we know keep queue postion when only the same price and if size is decremented !
+
+        if old_oid not in self.orders_by_id:
+            return
+
+        old_order = self.orders_by_id[old_oid]
+        old_qty = old_order.qty
+
+        if new_price == old_order.price and new_qty <= old_qty : # here new_qty is less      
+            self.orders_by_id[old_oid].qty = new_qty  # queue position is preserved !
+        
+        else : # loses queue position ! // (this type of cases->) new_price != old_order.price or new_qty > old_qty 
+            new_order = Order(new_oid ,None,"LIMIT",old_order.side,new_qty ,old_order.symbol,new_price,timestamp)
+            self.remove_order(old_oid,timestamp) # old order removed !
+            self.add_place_limit_order(new_order,timestamp) # new order placed.
 
     def __repr__(self):
         return f'Bids -> {self.bids}  Asks -> {self.asks}'    
@@ -377,7 +396,6 @@ class OrderBook:
         elif order.type == "MARKET":    
             return self.add_match_market_order(order,sim_time) #---------------------------------------------------9:00 pm 5 nov 25
             # self.add_match_market_order returns a list of trades , that occur ... , similarly for add_place_limit...()
-
 
     def parse_payload_to_order(self,payload , event_type , timestamp):
         if event_type == "AddOrder" :  # check if Add Order with another thing is needed , itch 5.0 , / ................................. 1:32AM 06 NOV 25
