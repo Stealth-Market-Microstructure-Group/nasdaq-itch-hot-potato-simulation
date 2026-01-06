@@ -57,14 +57,35 @@ class OrderBook:
             if order.side == "BUY":
                         if price in self.bids:
                             self.bids[price].remove(order)  # // order removed from book
+                            
+                            # there was the flaw , now fixed below...............................................................................................................................................12:03AM 7 jan 2026
+                            """so the error explained breifly here , the thing was the best bid and ask log file 
+                            was just sticking to a bid or ask even when it was having 0 qty st it , then i
+                            realized that even after we remove the order_id and order key value pair from self.order_by_id
+                            and from the bid (or ask) dict also ,still the price level in the big(or ask) dict exist when 
+                            even when this removal or cancellation result in the whole qty vanishing at this price level.
+                            in previos versions of the sim , this thing was not much bothering anyone , and nkt even seen , as
+                            at that time only agent had the ability to remove/cancel the orders , which most times did not usually
+                            vanish the price level as whole , as there were people at that price even when agent removed the order.
+                            we can understand why agent do this order placing on that type of level only , where there is someone already ,
+                            and the logic is there in the agents.py itself , which is says our agent's actions"""
+                            
                             del self.orders_by_id[order_id] # // key value pair removed
+                            if not self.bids[price]:  # check if whole price level is at 0 qty after this removing this order.
+                                del self.bids[price] # if yes , delete the price level from the asks dict , so no price like this can be fetched in get_best_ask func....... 12:26 AM 7 jan 2026
+
                             if not silent: # <--- ONLY LOG IF NOT SILENT
                                 logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED at price {order.price}  ORDER ID=({order_id})")
                      
             elif order.side == "SELL":
                         if price in self.asks:
                             self.asks[price].remove(order)
+                            # here also was the error,see previous commit , now fixed...............................................................................................................................................12:06AM 7 jan 2026 
+                            
                             del self.orders_by_id[order_id]
+                            if not self.asks[price]:  # check if whole price level is at 0 qty after this removing this order
+                                del self.asks[price] # if yes , delete the price level from the asks dict , so no price like this can be fetched in get_best_ask func....... 12:26 AM 7 jan 2026
+
                             if not silent: # <--- ONLY LOG IF NOT SILENT
                                 logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED at price {order.price}  ORDER ID=({order_id})")
         else:

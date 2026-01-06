@@ -193,7 +193,8 @@ class newAgentB(baseagent):
         
         if self.state == "WAITING_FOR_FILL":
             # How do we know we're filled? The main loop calls update_inventory.
-            if self.inventory < 0:
+            
+            if self.inventory == -107: # a slight change here in logic..... 12:32AM 7 jan 2026.....
                 # We got filled!
                 # logging.info(f"Agent B: FILL DETECTED! Inventory is {self.inventory}. Moving to hot potato.")
                 self.state = "LOOKING_TO_BUY_BACK" # <-- CHANGE STATE

@@ -177,10 +177,10 @@ try:
             elif event_type == "OrderCancel":
                 oid = payload["OrderReferenceNumber"]
                 canceled = payload["CanceledShares"]
-
+                
                 if oid in order_book.orders_by_id:
                     order_book.reduce_order_qty(oid, canceled, timestamp=current_sim_time_ns)
-    
+                    log_best_bid_ask_to_file()
 
             elif event_type == "OrderDelete":
 
@@ -188,7 +188,7 @@ try:
                 
                 if oid in order_book.orders_by_id: # this check already is in remove_order function also
                     order_book.remove_order(order_id=oid,timestamp=current_sim_time_ns)
-
+                    log_best_bid_ask_to_file()
 
             elif event_type == "OrderReplace": 
                 old_oid = payload["OriginalOrderRefNumber"]
@@ -198,7 +198,7 @@ try:
 
                 # payload["price"] is new price and payload["shares"] is new qty .
                 order_book.replace_order(old_oid, new_oid, payload["Price"]/10000, payload["Shares"], current_sim_time_ns)
-
+                log_best_bid_ask_to_file()
 
 
 

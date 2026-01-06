@@ -3,3 +3,5 @@ RESEARCH F . ITCH DATA . PROVIDER . PARSER/data/01302020.NASDAQ_ITCH50
 RESEARCH F . ITCH DATA . PROVIDER . PARSER/01302020.NASDAQ_ITCH50.gz
 hot_potato_sim/marketevents.jsonl
 RESEARCH F . ITCH DATA . PROVIDER . PARSER/cmd/market_events_old.jsonl
+hot_potato_sim/__pycache__/new_matching_engine_V7.cpython-312.pyc
+hot_potato_sim/__pycache__/agents.cpython-312.pyc
