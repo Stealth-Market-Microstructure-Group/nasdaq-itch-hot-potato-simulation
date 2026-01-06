@@ -86,12 +86,12 @@ def log_best_bid_ask_to_file():
 
 script_dir = os.path.dirname(os.path.abspath(__file__)) #  absolute path to the directory this script is in 
 
-data_file_path = os.path.join(script_dir, 'spy_data_ph.jsonl') # this is whre to put name of file. jsonl///
+data_file_path = os.path.join(script_dir, 'marketevents.jsonl') # this is whre to put name of file. jsonl///
 #  file path relative to this script 
 
 try:
     logging.info(f"Attempting to open file at: {data_file_path}")
-    with open(data_file_path, 'r', encoding='utf-16-le') as f:
+    with open(data_file_path, 'r', encoding='utf-8') as f:
     # _____________________________________________
 
         for line_number, line in enumerate(f):  
@@ -191,13 +191,13 @@ try:
 
 
             elif event_type == "OrderReplace": 
-                old_oid = payload["OriginalOrderReferenceNumber"]
-                new_oid = payload["NewOrderReferenceNumber"]
+                old_oid = payload["OriginalOrderRefNumber"]
+                new_oid = payload["NewOrderRefNumber"]
                 
                 # if old_oid not in order_book.orders_by_id: // this thing is already in replace 
 
                 # payload["price"] is new price and payload["shares"] is new qty .
-                order_book.replace_order(old_oid, new_oid, payload["Price"], payload["Shares"], current_sim_time_ns)
+                order_book.replace_order(old_oid, new_oid, payload["Price"]/10000, payload["Shares"], current_sim_time_ns)
 
 
 
@@ -212,6 +212,7 @@ try:
 # Design rationale documented in docs DESIGN/market_order_handling.md
 
 # (a desgin comment was there previously , check design doc there to see the idea .......)
+
 
 
             # ///  Agent Logic ///

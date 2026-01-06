@@ -1,4 +1,5 @@
-hot_potato_sim/spy_data.jsonl
+hot_potato_sim/spy_data_utf8.jsonl
 RESEARCH F . ITCH DATA . PROVIDER . PARSER/data/01302020.NASDAQ_ITCH50
 RESEARCH F . ITCH DATA . PROVIDER . PARSER/01302020.NASDAQ_ITCH50.gz
-
+hot_potato_sim/marketevents.jsonl
+RESEARCH F . ITCH DATA . PROVIDER . PARSER/cmd/market_events_old.jsonl

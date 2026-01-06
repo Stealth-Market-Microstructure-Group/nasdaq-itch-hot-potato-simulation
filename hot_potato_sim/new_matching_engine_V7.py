@@ -46,7 +46,7 @@ class OrderBook:
 
 #  ///// oid is shorthand for order_ird ///////////////
 
-    def remove_order(self,order_id,timestamp):
+    def remove_order(self,order_id,timestamp, silent=False):
         # now use this for orderexecuted message ,okay, boy ;)   
         # look this function return a trade 
 
@@ -58,15 +58,18 @@ class OrderBook:
                         if price in self.bids:
                             self.bids[price].remove(order)  # // order removed from book
                             del self.orders_by_id[order_id] # // key value pair removed
-                            logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED at price {order.price}  ORDER ID=({order_id})")
+                            if not silent: # <--- ONLY LOG IF NOT SILENT
+                                logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED at price {order.price}  ORDER ID=({order_id})")
                      
             elif order.side == "SELL":
                         if price in self.asks:
                             self.asks[price].remove(order)
                             del self.orders_by_id[order_id]
-                            logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED at price {order.price}  ORDER ID=({order_id})")
+                            if not silent: # <--- ONLY LOG IF NOT SILENT
+                                logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED at price {order.price}  ORDER ID=({order_id})")
         else:
-            logging.info(f"FAILED: [{timestamp}] ORDER REMOVAL ({order_id})")   # if order not in book . means our agent took it off , so.../
+            if not silent:
+                logging.info(f"FAILED: [{timestamp}] ORDER REMOVAL ({order_id})")   # if order not in book . means our agent took it off , so.../
         # /... nothing needs to be done . so no print , no log . that trade already may have done the logging , when agent interacted with that order ! 
         # IMP CONCEPT discussed just above ... look sometimes , when docmentation is done # __________________________________________________________________________________ good point , understand
 
@@ -79,9 +82,11 @@ class OrderBook:
 
         if cancel_qty < old_qty:
             self.orders_by_id[order_id].qty = old_qty - cancel_qty
+            logging.info(f"CONFIRMATION: [{timestamp}] ORDER PARTIALLY CANCELLED at price {order.price} | qty {old_qty}->{new_qty} | ID=({order_id})")
 
         elif cancel_qty == order.qty:
-            self.remove_order(order_id,timestamp)
+            self.remove_order(order_id,timestamp,silent=True)
+            logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED (Full Cancel) at price {order.price} | ID=({order_id})")
         else: # a weired case
             return
 
@@ -89,18 +94,30 @@ class OrderBook:
         # first we know keep queue postion when only the same price and if size is decremented !
 
         if old_oid not in self.orders_by_id:
+            logging.info(f"FAILED: [{timestamp}] REPLACE REJECTED - ID {old_oid} not found")
             return
 
         old_order = self.orders_by_id[old_oid]
+        old_price = old_order.price
         old_qty = old_order.qty
 
-        if new_price == old_order.price and new_qty <= old_qty : # here new_qty is less      
-            self.orders_by_id[old_oid].qty = new_qty  # queue position is preserved !
-        
+        if new_price == old_order.price and new_qty <= old_qty : # here new_qty is less 
+            new_order = old_order
+            new_order.order_id = new_oid
+            del self.orders_by_id[old_oid]
+            self.orders_by_id[new_oid] = new_order 
+            
+            self.orders_by_id[new_oid].qty = new_qty  # queue position is preserved !
+            # Use new_oid if the exchange protocol replaces the ID even on amend
+            logging.info(f"CONFIRMATION: [{timestamp}] ORDER AMENDED (Priority Kept): ID({old_oid})->({new_oid}) | price {new_price} | qty {old_qty}->{new_qty}")
+
         else : # loses queue position ! // (this type of cases->) new_price != old_order.price or new_qty > old_qty 
+            self.remove_order(old_oid,timestamp, silent=True) # old order removed !
+            
             new_order = Order(new_oid ,None,"LIMIT",old_order.side,new_qty ,old_order.symbol,new_price,timestamp)
-            self.remove_order(old_oid,timestamp) # old order removed !
             self.add_place_limit_order(new_order,timestamp) # new order placed.
+            
+            logging.info(f"CONFIRMATION: [{timestamp}] ORDER REPLACED: ID({old_oid})->({new_oid}) | price {old_price}->{new_price} | qty {old_qty}->{new_qty}")
 
     def __repr__(self):
         return f'Bids -> {self.bids}  Asks -> {self.asks}'    

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -14,16 +13,11 @@ import (
 
 // ================= SYMBOL FILTER LAYER =================
 
-// OrderID -> Symbol
-var orderSymbolMap = make(map[uint64]string)
+var orderSymbolMap = make(map[uint64]string) // OrderID -> Symbol
+var orderRemaining = make(map[uint64]uint32) // OrderID -> Remaining shares
 
-// OrderID -> Remaining shares
-var orderRemaining = make(map[uint64]uint32)
-
-// Only process orders of this symbol
 const targetSymbol = "SPY"
 
-// Check if an order belongs to our target symbol
 func isTargetOrder(orderID uint64) bool {
 	sym, ok := orderSymbolMap[orderID]
 	return ok && sym == targetSymbol
@@ -44,18 +38,18 @@ func main() {
 	log.SetOutput(os.Stderr)
 	log.Printf("[Go] Filtering ONLY symbol: %s", targetSymbol)
 
-	// Output JSON filename
-	outFile := "market_events.json"
+	// ---------------- OUTPUT FILE ----------------
+	outFile := "marketevents.jsonl"
 	outF, err := os.Create(outFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer outF.Close()
-	out := bufio.NewWriter(outF)
-	defer out.Flush()
 
-	// Input ITCH file
-	inFile := `data\01302020.NASDAQ_ITCH50`
+	out := bufio.NewWriterSize(outF, 1<<20) // 1MB buffer
+
+	// ---------------- INPUT FILE ----------------
+	inFile := "../data/01302020.NASDAQ_ITCH50"
 	f, err := os.Open(inFile)
 	if err != nil {
 		log.Fatal(err)
@@ -63,6 +57,9 @@ func main() {
 	defer f.Close()
 
 	sbr := parser.NewSoupBinReader(f)
+
+	var processed uint64
+	var written uint64
 
 	for {
 		payload, err := sbr.NextPayload()
@@ -84,6 +81,8 @@ func main() {
 				log.Fatal(err)
 			}
 
+			processed++
+
 			var (
 				eventType string
 				symbol    string
@@ -94,92 +93,83 @@ func main() {
 			switch m := env.Msg.(type) {
 
 			// ---------------- ADD ----------------
+			case *parser.AddOrderNoMPIDAttribution:
+				orderSymbolMap[m.OrderReferenceNumber] = m.Stock
+				orderRemaining[m.OrderReferenceNumber] = m.Shares
 
-			case *parser.AddOrderNoMPIDAttribution, *parser.AddOrderWithMPIDAttribution:
-				var orderID uint64
-				var stock string
-				var shares uint32
-				var header parser.MessageHeader
-
-				switch o := m.(type) {
-				case *parser.AddOrderNoMPIDAttribution:
-					orderID = o.OrderReferenceNumber
-					stock = o.Stock
-					shares = o.Shares
-					header = o.Header
-				case *parser.AddOrderWithMPIDAttribution:
-					orderID = o.OrderReferenceNumber
-					stock = o.Stock
-					shares = o.Shares
-					header = o.Header
-				}
-
-				orderSymbolMap[orderID] = stock
-				orderRemaining[orderID] = shares
-
-				if stock != targetSymbol {
+				if m.Stock != targetSymbol {
 					continue
 				}
 
 				eventType = "AddOrder"
-				symbol = stock
-				ts = header.Timestamp
+				symbol = m.Stock
+				ts = m.Header.Timestamp
 				msg = m
 
-			// ---------------- EXECUTE ----------------
+			case *parser.AddOrderWithMPIDAttribution:
+				orderSymbolMap[m.OrderReferenceNumber] = m.Stock
+				orderRemaining[m.OrderReferenceNumber] = m.Shares
 
-			case *parser.OrderExecuted, *parser.OrderExecutedWithPrice:
-				var orderID uint64
-				var executed uint32
-				var header parser.MessageHeader
-
-				switch o := m.(type) {
-				case *parser.OrderExecuted:
-					orderID = o.OrderReferenceNumber
-					executed = o.ExecutedShares
-					header = o.Header
-				case *parser.OrderExecutedWithPrice:
-					orderID = o.OrderReferenceNumber
-					executed = o.ExecutedShares
-					header = o.Header
-				}
-
-				if !isTargetOrder(orderID) {
+				if m.Stock != targetSymbol {
 					continue
 				}
 
-				// safe reduce qty logic
-				if remaining, ok := orderRemaining[orderID]; ok {
-					if executed >= remaining {
-						delete(orderRemaining, orderID)
-						delete(orderSymbolMap, orderID)
+				eventType = "AddOrder"
+				symbol = m.Stock
+				ts = m.Header.Timestamp
+				msg = m
+
+			// ---------------- EXECUTE ----------------
+			case *parser.OrderExecuted:
+				if !isTargetOrder(m.OrderReferenceNumber) {
+					continue
+				}
+
+				if rem, ok := orderRemaining[m.OrderReferenceNumber]; ok {
+					if m.ExecutedShares >= rem {
+						delete(orderRemaining, m.OrderReferenceNumber)
+						delete(orderSymbolMap, m.OrderReferenceNumber)
 					} else {
-						orderRemaining[orderID] = remaining - executed
+						orderRemaining[m.OrderReferenceNumber] = rem - m.ExecutedShares
 					}
 				}
 
 				eventType = "OrderExecuted"
 				symbol = targetSymbol
-				ts = header.Timestamp
+				ts = m.Header.Timestamp
 				msg = m
 
-			// ---------------- CANCEL ----------------
-
-			case *parser.OrderCancel:
-				orderID := m.OrderReferenceNumber
-				canceled := m.CanceledShares
-
-				if !isTargetOrder(orderID) {
+			case *parser.OrderExecutedWithPrice:
+				if !isTargetOrder(m.OrderReferenceNumber) {
 					continue
 				}
 
-				// reduce order qty safely
-				if remaining, ok := orderRemaining[orderID]; ok {
-					if canceled >= remaining {
-						delete(orderRemaining, orderID)
-						delete(orderSymbolMap, orderID)
+				if rem, ok := orderRemaining[m.OrderReferenceNumber]; ok {
+					if m.ExecutedShares >= rem {
+						delete(orderRemaining, m.OrderReferenceNumber)
+						delete(orderSymbolMap, m.OrderReferenceNumber)
 					} else {
-						orderRemaining[orderID] = remaining - canceled
+						orderRemaining[m.OrderReferenceNumber] = rem - m.ExecutedShares
+					}
+				}
+
+				eventType = "OrderExecutedWithPrice"
+				symbol = targetSymbol
+				ts = m.Header.Timestamp
+				msg = m
+
+			// ---------------- CANCEL ----------------
+			case *parser.OrderCancel:
+				if !isTargetOrder(m.OrderReferenceNumber) {
+					continue
+				}
+
+				if rem, ok := orderRemaining[m.OrderReferenceNumber]; ok {
+					if m.CanceledShares >= rem {
+						delete(orderRemaining, m.OrderReferenceNumber)
+						delete(orderSymbolMap, m.OrderReferenceNumber)
+					} else {
+						orderRemaining[m.OrderReferenceNumber] = rem - m.CanceledShares
 					}
 				}
 
@@ -189,16 +179,13 @@ func main() {
 				msg = m
 
 			// ---------------- DELETE ----------------
-
 			case *parser.OrderDelete:
-				orderID := m.OrderReferenceNumber
-
-				if !isTargetOrder(orderID) {
+				if !isTargetOrder(m.OrderReferenceNumber) {
 					continue
 				}
 
-				delete(orderRemaining, orderID)
-				delete(orderSymbolMap, orderID)
+				delete(orderRemaining, m.OrderReferenceNumber)
+				delete(orderSymbolMap, m.OrderReferenceNumber)
 
 				eventType = "OrderDelete"
 				symbol = targetSymbol
@@ -206,7 +193,6 @@ func main() {
 				msg = m
 
 			// ---------------- REPLACE ----------------
-
 			case *parser.OrderReplace:
 				oldID := m.OriginalOrderRefNumber
 				newID := m.NewOrderRefNumber
@@ -215,10 +201,8 @@ func main() {
 					continue
 				}
 
-				// move state to new order
 				orderSymbolMap[newID] = targetSymbol
 				orderRemaining[newID] = m.Shares
-
 				delete(orderSymbolMap, oldID)
 				delete(orderRemaining, oldID)
 
@@ -231,7 +215,6 @@ func main() {
 				continue
 			}
 
-			// Marshal JSON and write to output
 			ev, _ := json.Marshal(MarketEvent{
 				Source:       "ITCH",
 				EventType:    eventType,
@@ -240,14 +223,24 @@ func main() {
 				TimestampUTC: ts,
 				Payload:      msg,
 			})
-			fmt.Fprintln(out, string(ev))
+
+			out.Write(ev)
+			out.WriteByte('\n')
+			written++
+
+			// FORCE FLUSH + PROGRESS (CRITICAL)
+			if written%10000 == 0 {
+				out.Flush()
+			}
+			if processed%5_000_000 == 0 {
+				log.Printf("[Go] processed=%d written=%d", processed, written)
+			}
 		}
 	}
 
-	log.Printf("[Go] Finished writing events to %s", outFile)
+	out.Flush()
+	log.Printf("[Go] DONE | processed=%d written=%d | file=%s", processed, written, outFile)
 }
-
-
 
 // package main
 
