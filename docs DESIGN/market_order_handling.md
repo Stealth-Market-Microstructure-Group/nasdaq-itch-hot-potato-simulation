@@ -67,6 +67,25 @@ Therefore, executions must be modeled as **active matching events**, not passive
 
 ---
 
+## Why `OrderExecuted` Can Be Safely Treated as Market Flow
+
+NASDAQ ITCH does not explicitly encode whether an execution was initiated by a market order or by an aggressive limit order crossing the spread.  
+An `OrderExecuted` message only reports that a resting order on the book was partially or fully filled, without identifying the precise order type of the incoming aggressor.
+
+At first glance, this ambiguity raises a concern: reconstructing executions as market orders may appear to conflate distinct order types.
+
+However, this distinction is not material at the point of execution.
+
+In continuous limit order markets, any aggressive order that crosses the spread—whether a true market order or a limit order priced above the best ask (for buys) or below the best bid (for sells)—is immediately matched against the best available resting liquidity. The matching process, price–time priority, and queue consumption behavior are identical in both cases. The only difference is that an aggressive limit order carries a price cap, whereas a market order does not.
+
+Crucially, this price constraint does not alter execution behavior when the order is immediately executable. At the moment of matching, both order types represent intentional liquidity-taking actions and function equivalently from the perspective of the order book.
+
+As a result, even though ITCH does not distinguish between market orders and aggressive limit orders in `OrderExecuted` messages, treating executions as synthetic market orders preserves the correct microstructural interpretation: an active aggressor consuming resting liquidity.
+
+Therefore, reconstructing market orders from `OrderExecuted` messages is not a distortion of historical behavior, but a structurally faithful representation of aggressive order flow. This approach ensures that all executions pass through the same matching logic, respect queue dynamics, and generate realistic market impact within the agent-based simulator.
+
+---
+
 ## Final Design Solution
 
 ### Synthetic Market Order Reconstruction
