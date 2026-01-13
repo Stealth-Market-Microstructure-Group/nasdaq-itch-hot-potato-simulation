@@ -28,15 +28,6 @@ from v2_orderbook.Trade_Class import Trade
 
 from collections import defaultdict
 
-"""UPDATE : THING YOU SAID WE MISSED IS NOW FULLY DONE , OVER AND OUT , THE WHOLE LIMIT ORDER LOGIC IS NOW DONE"""
-"""below one"""
-""" A limit order executes only at its specified price or better. If it arrives and
-finds liquidity on the opposite side at its exact price, it matches.
-If it finds liquidity at a better price (e.g., a buy limit at $100.05 finds asks at $100.04),
-it should match at that better price. If there's no liquidity at its price or better,
-it sits on the book at its specified price."""
-
-
 class OrderBook:
     def __init__(self):
         self.bids = defaultdict(list)     # This made our below task of appending any list having new key , easy !
@@ -75,7 +66,7 @@ class OrderBook:
                                 del self.bids[price] # if yes , delete the price level from the asks dict , so no price like this can be fetched in get_best_ask func....... 12:26 AM 7 jan 2026
 
                             if not silent: # <--- ONLY LOG IF NOT SILENT
-                                logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED at price {order.price}  ORDER ID=({order_id})")
+                                logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED at price {order.price/10000}  ORDER ID=({order_id})")
                      
             elif order.side == "SELL":
                         if price in self.asks:
@@ -87,7 +78,7 @@ class OrderBook:
                                 del self.asks[price] # if yes , delete the price level from the asks dict , so no price like this can be fetched in get_best_ask func....... 12:26 AM 7 jan 2026
 
                             if not silent: # <--- ONLY LOG IF NOT SILENT
-                                logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED at price {order.price}  ORDER ID=({order_id})")
+                                logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED at price {order.price/10000}  ORDER ID=({order_id})")
         else:
             if not silent:
                 logging.info(f"FAILED: [{timestamp}] ORDER REMOVAL ({order_id})")   # if order not in book . means our agent took it off , so.../
@@ -103,11 +94,12 @@ class OrderBook:
 
         if cancel_qty < old_qty:
             self.orders_by_id[order_id].qty = old_qty - cancel_qty
-            logging.info(f"CONFIRMATION: [{timestamp}] ORDER PARTIALLY CANCELLED at price {order.price} | qty {old_qty}->{new_qty} | ID=({order_id})")
+            new_qty = old_qty - cancel_qty
+            logging.info(f"CONFIRMATION: [{timestamp}] ORDER PARTIALLY CANCELLED at price {order.price/10000} | qty {old_qty}->{new_qty} | ID=({order_id})")
 
         elif cancel_qty == order.qty:
             self.remove_order(order_id,timestamp,silent=True)
-            logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED (Full Cancel) at price {order.price} | ID=({order_id})")
+            logging.info(f"CONFIRMATION: [{timestamp}] ORDER REMOVED (Full Cancel) at price {order.price/10000} | ID=({order_id})")
         else: # a weired case
             return
 
@@ -459,7 +451,8 @@ class OrderBook:
                 side = "SELL"
             type = "LIMIT"  # as it is AddOrder  
             qty = payload["Shares"]
-            price = payload["Price"]/10000
+            # price = payload["Price"]/10000  // old thing 14 jan 2026 ,, 12:08AM_________________________________________________________________________
+            price = payload["Price"] 
             agent_id = None  # no MPID , as it is evntype 'A'
             symbol = payload["Stock"]
             order = Order(order_id,agent_id,type,side,qty,symbol,price,timestamp)
@@ -479,7 +472,8 @@ class OrderBook:
             #     side = "SELL"
             type = "LIMIT"  # as it is AddOrder  
             qty = payload["Shares"]
-            price = payload["Price"]/10000
+            # price = payload["Price"]/10000 // old thing 14 jan 2026 ,, 12:08AM_________________________________________________________________________
+            price = payload["Price"] # it comes as multiply by 10000 , see the struct( below for eg.)
             agent_id = payload["Attribution"]
             symbol = payload["Stock"]
             order = Order(order_id,agent_id,type,side,qty,symbol,price,timestamp)
@@ -517,13 +511,9 @@ class OrderBook:
             
 
 
-        
+# ////////            ////////// 
 
-# logic for ORDEREXECUTED OR WITH PRICE , IS IN main_sim.py itself__________________________________________________ 1:34AM 06 NOV 25 
-# ignore above comment...///
-
-
-
+# typical structs below for reference....
 
 """{
   "Source": "ITCH",

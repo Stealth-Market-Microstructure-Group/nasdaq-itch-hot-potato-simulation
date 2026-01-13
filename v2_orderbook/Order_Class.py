@@ -25,7 +25,7 @@ class Order:
 
 
     def __repr__(self):
-        price_str = f"{self.price:>7.2f}" if self.price is not None else " MKT   "
+        price_str = f"{self.price/10000:>7.2f}" if self.price is not None else " MKT   "
         return (
             f"[{self.timestamp}] "
             f"{self.type:<6} {self.side:<4} @ {price_str}  |  "

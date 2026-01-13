@@ -10,7 +10,7 @@ class Trade:
         self.timestamp = timestamp # in ns
     
     def __repr__(self):
-        price_str = f"{self.price:.2f}" if self.price is not None else "N/A"
+        price_str = f"{self.price/10000:.2f}" if self.price is not None else "N/A"
         buyer_str = self.buyer_id if self.buyer_id is not None else "UNKNOWN"
         seller_str = self.seller_id if self.seller_id is not None else "UNKNOWN"
 

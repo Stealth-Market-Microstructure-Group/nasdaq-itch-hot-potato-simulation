@@ -60,9 +60,10 @@ def log_best_bid_ask_to_file():
     with open("best_bid_ask_live.log", "w") as f:  # ← append mode like original
         if data:
             best_bid, bid_qty, best_ask, ask_qty = data
+            # needs an update here , the 10000 thing , look here_____________________________________________________
             f.write(
-                f"BEST ASK: {best_ask:>8}  --  {ask_qty} shares\n"
-                f"BEST BID: {best_bid:>8}  --  {bid_qty} shares\n"
+                f"BEST ASK: {best_ask/10000:>8}  --  {ask_qty} shares\n"  # see here the 10000 divide thing.
+                f"BEST BID: {best_bid/10000:>8}  --  {bid_qty} shares\n"
                 f"{'-'*35}\n"
             )
         else:
@@ -177,7 +178,7 @@ try:
             elif event_type == "OrderCancel":
                 oid = payload["OrderReferenceNumber"]
                 canceled = payload["CanceledShares"]
-                
+
                 if oid in order_book.orders_by_id:
                     order_book.reduce_order_qty(oid, canceled, timestamp=current_sim_time_ns)
                     log_best_bid_ask_to_file()
@@ -197,7 +198,7 @@ try:
                 # if old_oid not in order_book.orders_by_id: // this thing is already in replace 
 
                 # payload["price"] is new price and payload["shares"] is new qty .
-                order_book.replace_order(old_oid, new_oid, payload["Price"]/10000, payload["Shares"], current_sim_time_ns)
+                order_book.replace_order(old_oid, new_oid, payload["Price"], payload["Shares"], current_sim_time_ns)
                 log_best_bid_ask_to_file()
 
 
@@ -218,8 +219,8 @@ try:
             # ///  Agent Logic ///
             agent_orders_to_submit_or_remove = agent_b.decide_action(
                 current_sim_time_ns, 
-                order_book.get_best_bid(), 
-                order_book.get_best_ask()
+                order_book.get_best_bid(), # get this as is , the price with that 10000 factor , 2404200 , as agent is the logic that was distorting it___________________14 jan 2026 , 12:41AM
+                order_book.get_best_ask()  # do not update the logic of this function , get the price as is. the big one. _________14 jan 2026 , 12:42AM
             )
 
 
