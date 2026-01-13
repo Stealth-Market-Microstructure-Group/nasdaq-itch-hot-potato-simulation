@@ -122,7 +122,7 @@ class OrderBook:
             
             self.orders_by_id[new_oid].qty = new_qty  # queue position is preserved !
             # Use new_oid if the exchange protocol replaces the ID even on amend
-            logging.info(f"CONFIRMATION: [{timestamp}] ORDER AMENDED (Priority Kept): ID({old_oid})->({new_oid}) | price {new_price} | qty {old_qty}->{new_qty}")
+            logging.info(f"CONFIRMATION: [{timestamp}] ORDER AMENDED (Priority Kept): ID({old_oid})->({new_oid}) | price {new_price/10000} | qty {old_qty}->{new_qty}")
 
         else : # loses queue position ! // (this type of cases->) new_price != old_order.price or new_qty > old_qty 
             self.remove_order(old_oid,timestamp, silent=True) # old order removed !
@@ -130,7 +130,7 @@ class OrderBook:
             new_order = Order(new_oid ,None,"LIMIT",old_order.side,new_qty ,old_order.symbol,new_price,timestamp)
             self.add_place_limit_order(new_order,timestamp) # new order placed.
             
-            logging.info(f"CONFIRMATION: [{timestamp}] ORDER REPLACED: ID({old_oid})->({new_oid}) | price {old_price}->{new_price} | qty {old_qty}->{new_qty}")
+            logging.info(f"CONFIRMATION: [{timestamp}] ORDER REPLACED: ID({old_oid})->({new_oid}) | price {old_price/10000}->{new_price/10000} | qty {old_qty}->{new_qty}")
 
     def __repr__(self):
         return f'Bids -> {self.bids}  Asks -> {self.asks}'    
