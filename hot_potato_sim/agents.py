@@ -179,7 +179,7 @@ class newAgentB(baseagent):
 
             if best_ask is not None:
                 order_id = random.randint(100000000000, 999999999999)
-                price = best_ask 
+                price = best_ask # for eg. 2404200 , now the float problem solved!
                 self.our_price = price # so as to use this later for placing more orders _______________________ 2:29AM 06 NOV 25
                 qty = 107
                 order = Order(order_id=order_id, agent_id=self.id, type='LIMIT', side='SELL',
@@ -205,7 +205,7 @@ class newAgentB(baseagent):
 
         if best_ask is not None and self.our_price is not None and self.my_passive_order_id is not None:
                 
-            if abs(self.our_price - best_ask) > 0.02 and self.state == "WAITING_FOR_FILL":   # every time it checks and whenever it finds it True , it cancels existing order and place new order
+            if abs(self.our_price - best_ask) > 200 and self.state == "WAITING_FOR_FILL":   # every time it checks and whenever it finds it True , it cancels existing order and place new order
                 order_id_to_cancel = self.my_passive_order_id  # save the order_id of previous order , which we need to cancel !!
 
                 order_id = random.randint(100000000000, 999999999999)
